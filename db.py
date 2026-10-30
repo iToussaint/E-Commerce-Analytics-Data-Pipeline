@@ -3,6 +3,8 @@ import os
 from psycopg2.extras import Json
 from psycopg2.pool import SimpleConnectionPool
 
+import cache
+
 pool = SimpleConnectionPool(
     minconn=1,
     maxconn=5,
@@ -71,9 +73,12 @@ def create_order(customer_id, items):
                     """,
                     (order_id, product_id, quantity, price),
                 )
-            return order_id
     finally:
         pool.putconn(conn)
+
+    # The new order changes sales totals, so the cached best-sellers are stale.
+    cache.clear_top_products()
+    return order_id
 
 
 def get_customer_orders(customer_id):
@@ -94,3 +99,34 @@ def get_customer_orders(customer_id):
             return cur.fetchall()
     finally:
         pool.putconn(conn)
+
+
+def get_top_selling_products():
+    """Return the 10 best-selling products, using Redis as a cache."""
+    products = cache.get_top_products()
+    if products is not None:
+        return products
+
+    conn = pool.getconn()
+    try:
+        with conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT p.product_id, p.name, SUM(oi.quantity) AS total_sold
+                FROM products p
+                JOIN order_items oi ON oi.product_id = p.product_id
+                GROUP BY p.product_id, p.name
+                ORDER BY total_sold DESC
+                LIMIT 10
+                """
+            )
+            rows = cur.fetchall()
+    finally:
+        pool.putconn(conn)
+
+    products = [
+        {"product_id": product_id, "name": name, "total_sold": total_sold}
+        for product_id, name, total_sold in rows
+    ]
+    cache.save_top_products(products)
+    return products
