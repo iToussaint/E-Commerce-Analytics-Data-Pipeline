@@ -56,3 +56,43 @@ relationship between orders and products.
 - **`metadata` JSONB:** product attributes vary by product, for example sizes for
   shirts or colors for phones. They are kept in one JSONB column instead of sparse
   columns, as the project requires.
+
+## Optimization Report
+
+The steps are in [sql/optimization.sql](sql/optimization.sql) and were run with
+`EXPLAIN ANALYZE` on the sample data (5,000 customers, 50,000 products, 50,000 orders,
+~125,000 order items), first without any extra index and then with it.
+
+### B-tree index on `orders.customer_id`
+
+Query: the orders and totals of one customer (the query behind `get_customer_orders()`).
+
+| | Plan on `orders` | Rows read and discarded | Execution time |
+|---|---|---|---|
+| Before | `Seq Scan` | 49,988 | 4.402 ms |
+| After `CREATE INDEX idx_orders_customer_id` | `Bitmap Index Scan` on the new index | 0 | 0.656 ms |
+
+The query became about **6.7× faster** (the orders lookup alone went from 3.8 ms to
+0.16 ms). PostgreSQL does not index foreign key columns automatically, so without
+the index it had to read all 50,000 orders to find the 12 that belong to the customer.
+The join to `order_items` already used the `order_items_pkey` index, because the
+composite primary key starts with `order_id`.
+
+### GIN index on `products.metadata`
+
+Query: products available in red, `WHERE metadata @> '{"colors": ["red"]}'`.
+
+| | Plan on `products` | Rows read and discarded | Execution time |
+|---|---|---|---|
+| Before | `Seq Scan` | 35,728 | ~14.4 ms |
+| After `CREATE INDEX idx_products_metadata ... USING GIN` | `Bitmap Index Scan` on the new index | 0 | 11.645 ms |
+
+The GIN index lets PostgreSQL find matching products without checking every row's
+JSON, but the gain here is modest (about 20%) because the filter is not selective:
+about 29% of all products (14,272) are red, and every one of them still has to be
+read from the table. GIN indexes pay off most on selective filters. For example,
+`{"colors": ["red", "yellow"], "sizes": ["XS"]}` (1,920 matches) ran in about 4 ms
+with the index.
+
+With only 200 products PostgreSQL ignored the GIN index entirely (a sequential scan
+of so few rows is cheaper), which is why the sample data uses 50,000 products.

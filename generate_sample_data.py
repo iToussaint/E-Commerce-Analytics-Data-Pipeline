@@ -6,7 +6,7 @@ import random
 from faker import Faker
 
 NUM_CUSTOMERS = 5_000
-NUM_PRODUCTS = 200
+NUM_PRODUCTS = 50_000
 NUM_ORDERS = 50_000
 BATCH_SIZE = 1_000
 
