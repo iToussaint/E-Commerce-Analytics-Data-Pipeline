@@ -37,3 +37,6 @@ FROM products
 WHERE metadata @> '{"colors": ["red"]}';
 
 -- Products available in size XL.
+SELECT product_id, name, metadata -> 'sizes' AS sizes
+FROM products
+WHERE metadata @> '{"sizes": ["XL"]}';
