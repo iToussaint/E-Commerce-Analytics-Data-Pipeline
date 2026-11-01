@@ -1,7 +1,7 @@
 """User session and shopping cart data stored in MongoDB."""
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pymongo import MongoClient
 
@@ -14,7 +14,7 @@ def save_session(customer_id):
     sessions.update_one(
         {"customer_id": customer_id},
         {
-            "$set": {"last_active": datetime.now(timezone.utc)},
+            "$set": {"last_active": datetime.now(UTC)},
             "$setOnInsert": {"cart": []},
         },
         upsert=True,

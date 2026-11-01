@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from db import add_product, create_order, get_customer_orders, get_cursor
+from db import add_product, create_order, get_cursor, get_customer_orders
 
 
 def query_one(sql, params):
@@ -12,13 +12,19 @@ def query_one(sql, params):
 
 
 def get_stock(product_id):
-    return query_one("SELECT stock_quantity FROM products WHERE product_id = %s", (product_id,))[0]
+    return query_one(
+        "SELECT stock_quantity FROM products WHERE product_id = %s", (product_id,)
+    )[0]
 
 
 def test_add_product_stores_metadata_as_jsonb():
-    product_id = add_product("Hoodie", 39.99, 5, {"sizes": ["M", "L"], "colors": ["black"]})
+    product_id = add_product(
+        "Hoodie", 39.99, 5, {"sizes": ["M", "L"], "colors": ["black"]}
+    )
 
-    name, metadata = query_one("SELECT name, metadata FROM products WHERE product_id = %s", (product_id,))
+    name, metadata = query_one(
+        "SELECT name, metadata FROM products WHERE product_id = %s", (product_id,)
+    )
     assert name == "Hoodie"
     assert metadata == {"sizes": ["M", "L"], "colors": ["black"]}
 
@@ -49,7 +55,12 @@ def test_create_order_rolls_back_when_stock_is_insufficient(customer_id):
 
     assert get_stock(shirt) == 10
     assert get_stock(mug) == 1
-    assert query_one("SELECT COUNT(*) FROM orders WHERE customer_id = %s", (customer_id,))[0] == 0
+    assert (
+        query_one("SELECT COUNT(*) FROM orders WHERE customer_id = %s", (customer_id,))[
+            0
+        ]
+        == 0
+    )
 
 
 def test_create_order_rejects_unknown_product(customer_id):

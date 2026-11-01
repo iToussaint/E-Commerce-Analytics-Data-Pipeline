@@ -3,7 +3,6 @@
 A data processing and analytics pipeline for a fictional e-commerce store, using
 PostgreSQL (with JSONB), Redis and MongoDB from Python.
 
-**Demo video:** [Loom recording](LOOM_LINK_HERE)
 
 ## Setup
 
