@@ -2,3 +2,4 @@ E-Commerce Analytics Data Pipeline.md
 instructions.md
 .venv/
 __pycache__/
+.pytest_cache/
