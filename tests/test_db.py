@@ -2,17 +2,13 @@ from decimal import Decimal
 
 import pytest
 
-from db import add_product, create_order, get_customer_orders, pool
+from db import add_product, create_order, get_customer_orders, get_cursor
 
 
 def query_one(sql, params):
-    conn = pool.getconn()
-    try:
-        with conn, conn.cursor() as cur:
-            cur.execute(sql, params)
-            return cur.fetchone()
-    finally:
-        pool.putconn(conn)
+    with get_cursor() as cur:
+        cur.execute(sql, params)
+        return cur.fetchone()
 
 
 def get_stock(product_id):

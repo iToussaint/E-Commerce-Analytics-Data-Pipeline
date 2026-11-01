@@ -18,7 +18,8 @@ def recreate_test_database():
     )
     conn.autocommit = True  # CREATE/DROP DATABASE cannot run inside a transaction
     with conn.cursor() as cur:
-        cur.execute("DROP DATABASE IF EXISTS ecommerce_test")
+        # FORCE closes any open connections (e.g. from pgAdmin) so the drop can't be blocked.
+        cur.execute("DROP DATABASE IF EXISTS ecommerce_test WITH (FORCE)")
         cur.execute("CREATE DATABASE ecommerce_test")
     conn.close()
 
@@ -27,27 +28,23 @@ recreate_test_database()
 
 import cache  # noqa: E402
 from create_tables import create_tables  # noqa: E402
-from db import pool  # noqa: E402
+from db import get_cursor  # noqa: E402
 
 create_tables()
 
 
 @pytest.fixture
 def customer_id():
-    conn = pool.getconn()
-    try:
-        with conn, conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO customers (first_name, last_name, email)
-                VALUES ('Test', 'Customer', %s)
-                RETURNING customer_id
-                """,
-                (f"{uuid.uuid4().hex}@example.com",),
-            )
-            return cur.fetchone()[0]
-    finally:
-        pool.putconn(conn)
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO customers (first_name, last_name, email)
+            VALUES ('Test', 'Customer', %s)
+            RETURNING customer_id
+            """,
+            (f"{uuid.uuid4().hex}@example.com",),
+        )
+        return cur.fetchone()[0]
 
 
 @pytest.fixture(autouse=True)
